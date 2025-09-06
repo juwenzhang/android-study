@@ -3,12 +3,9 @@ name: Deploy Android-Study
 on:
   push:
     branches: [master, main]
-  merge:
-    branches: [master, main]
-  pull_request:
-    branches: [master, main]
-    types: [opened, synchronize, reopened, closed]
-    
+
+  workflow_dispatch:
+
 permissions:
   contents: read
   pages: write
@@ -19,33 +16,35 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # 构建工作
+  # Build job
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  
+          fetch-depth: 0 # Not needed if lastUpdated is not enabled
+      - uses: pnpm/action-setup@v3 # pnpm is optional but recommended, you can also use npm / yarn
+        with:
+          version: 8
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '18.x'
-          cache: npm # 或 pnpm / yarn
+          node-version: 20
+          cache: pnpm
       - name: Setup Pages
-        uses: actions/configure-pages@v4
-      - name: Install pnpm
-        run: npm install pnpm -g
+        uses: actions/configure-pages@v5
       - name: Install dependencies
         run: pnpm install
-      - name: Build with rspress
+      - name: Build with Rspress
         run: |
           pnpm run build
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: doc_build/
+          path: doc_build
 
+  # Deployment job
   deploy:
     environment:
       name: github-pages
