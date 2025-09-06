@@ -3,7 +3,7 @@ import { defineConfig } from 'rspress/config';
 
 export default defineConfig({
   root: path.join(__dirname, 'docs'),
-  title: 'My Site',
+  title: 'Juwenzhang‘ Android-Study',
   icon: '/rspress-icon.png',
   logo: {
     light: '/rspress-light-logo.png',
@@ -26,10 +26,9 @@ export default defineConfig({
   // 显示指定部署使用的 cdn 链接
   builderConfig: {
     output: {
-      assetPrefix: 'https://juwenzhang.github.io/',
+      assetPrefix: 'https://juwenzhang.github.io/android-study',
     }
   },
   // 指定需要进行部署的子路径
   base: '/android-study/',
-  // 可以进行其他的配置选型吧
 });
