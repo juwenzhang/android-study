@@ -8,5 +8,10 @@
     "text": "meg",
     "link": "/meg/",
     "activeMatch": "/meg/"
+  },
+  {
+    "text": "ecosystem",
+    "link": "/ecosystem/",
+    "activeMatch": "/ecosystem/"
   }
 ]
