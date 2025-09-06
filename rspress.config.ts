@@ -26,7 +26,7 @@ export default defineConfig({
   // 显示指定部署使用的 cdn 链接
   builderConfig: {
     output: {
-      assetPrefix: 'https://juwenzhang.github.io/android-study',
+      // assetPrefix: 'https://juwenzhang.github.io',
     }
   },
   // 指定需要进行部署的子路径
