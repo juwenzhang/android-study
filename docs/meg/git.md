@@ -80,3 +80,5 @@
 > `16. git tag` 查看标签
 
 > `17. git commit --amend`  在本次的提交信息基础上进行提交新的代码
+
+> `18. git commit --amend -m "new commit message"`  修改本次的提交信息
