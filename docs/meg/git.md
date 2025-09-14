@@ -82,3 +82,10 @@
 > `17. git commit --amend`  在本次的提交信息基础上进行提交新的代码
 
 > `18. git commit --amend -m "new commit message"`  修改本次的提交信息
+
+## 场景使用
+* 在一个需求下进行提交代码的时候：
+    * 第一次提交代码：`git commit -m "提交信息"`
+    * 后续提交代码：`git commit --amend -m "提交信息"` ｜ `git commit --amend --no-edit`
+* 如果提交代码信息需要修改
+    * `git commit --amend -m "新的提交信息"` ｜ `git commit --amend --edit`
