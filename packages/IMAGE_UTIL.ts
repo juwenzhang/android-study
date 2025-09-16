@@ -5,23 +5,23 @@
 
 // 扩展Window接口声明，以支持React和Vue类型
 interface Window {
-  Vue?: any;
-  React?: any;
-  imageUtilsPreview?: HTMLElement;
+    Vue?: any;
+    React?: any;
+    imageUtilsPreview?: HTMLElement;
+    navigator?: Navigator;
 }
 
 // 框架组件选项接口定义
-// @ts-ignore
-interface FrameworkComponentOptions {
-  type?: 'table' | 'image';
-  framework?: 'react' | 'vue' | 'vanilla';
-  [key: string]: any;
+export interface FrameworkComponentOptions {
+    type?: 'table' | 'image';
+    framework?: 'react' | 'vue' | 'vanilla';
+    [key: string]: any;
 }
 
-// 全局环境检测 - 使用更安全的类型检查
-const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
-const isReact = isBrowser && typeof window !== 'undefined' && typeof (window as any).React !== 'undefined';
-const isVue = isBrowser && typeof window !== 'undefined' && typeof (window as any).Vue !== 'undefined';
+// 全局环境检测
+const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined' && typeof navigator !== 'undefined';
+const isReact = isBrowser && typeof (window as any).React !== 'undefined' && typeof (window as any).React.createElement === 'function';
+const isVue = isBrowser && typeof (window as any).Vue !== 'undefined';
 
 // 跨端环境检测
 const isAndroid = isBrowser && navigator.userAgent.toLowerCase().includes('android');
@@ -31,11 +31,24 @@ const isDesktop = isBrowser && !isAndroid && !isIOS;
 /**
  * 获取当前操作系统平台
  */
-const getPlatform = (): 'android' | 'ios' | 'desktop' | 'unknown' => {
+export const getPlatform = (): 'android' | 'ios' | 'desktop' | 'unknown' => {
     if (isBrowser) {
-        if (isAndroid) return 'android';
-        if (isIOS) return 'ios';
-        if (isDesktop) return 'desktop';
+        // 优先检查用户代理字符串
+        const userAgent = navigator.userAgent.toLowerCase();
+        
+        // 更精确的移动设备检测
+        if (/android/.test(userAgent)) {
+            return 'android';
+        } else if (/(iphone|ipad|ipod)/.test(userAgent)) {
+            return 'ios';
+        } 
+        
+        // 检测桌面环境
+        const isMobile = /(mobile|tablet)/.test(userAgent) || 
+                        window.innerWidth <= 768 || 
+                        navigator.maxTouchPoints > 0;
+        
+        return isMobile ? 'unknown' : 'desktop';
     }
     return 'unknown';
 };
@@ -133,14 +146,13 @@ export interface ImageRenderConfig {
     onRenderComplete?: () => void;
     maxWidth?: number;
     maxHeight?: number;
-    renderMode?: 'dom' | 'html' | 'react' | 'vue'; // 新增：支持多种渲染模式
+    renderMode?: 'dom' | 'html' | 'react' | 'vue';
     customCellRenderer?: (value: any, column: string, row: any) => string | HTMLElement | any; // 新增：自定义单元格渲染器
     customImageRenderer?: (url: string, row: any, column: string) => string | HTMLElement | any; // 新增：自定义图片渲染器
-    className?: string; // 新增：表格容器类名
+    className?: string;
 }
 
 // 框架组件包装接口
-
 export interface _FrameworkComponentOptions {
     imageUtils?: ImageUtils;
     defaultProps?: any;
@@ -1098,15 +1110,15 @@ export class ImageUtils {
     /**
      * React专用渲染方法
      */
-    private renderTableForReact(options: {
-        dataSource: Array<{[key: string]: any}>;
-        imageColumns: string[];
+    private renderTableForReact<T extends Record<string, any>>(options: {
+        dataSource: T[];
+        imageColumns: Array<keyof T>;
         maxWidth: number;
         maxHeight: number;
-        customCellRenderer?: (value: any, column: string, row: any) => any;
-        customImageRenderer?: (url: string, row: any, column: string) => any;
+        customCellRenderer?: (value: any, column: string, row: T) => any;
+        customImageRenderer?: (url: string, row: T, column: string) => any;
         className: string;
-    }): any {
+    }): JSX.Element {
         if (!isReact || typeof (window as any).React !== 'object' || typeof (window as any).React.createElement !== 'function') {
             throw new Error('React环境未正确加载');
         }
@@ -1569,7 +1581,7 @@ export const imageUtilsFP = {
         return imageUtils.renderTableImages(config);
     },
 
-    // 显示图片预览 - 直接在函数式API中实现
+    // 显示图片预览 - 支持移动端手势操作
     showImagePreview: (imageUrl: string): void => {
         if (isBrowser) {
             try {
@@ -1594,6 +1606,8 @@ export const imageUtilsFP = {
                 previewContainer.style.transition = 'opacity 0.3s ease';
                 previewContainer.style.opacity = '0';
                 previewContainer.id = 'imageUtilsPreview';
+                // 允许触摸滚动
+                previewContainer.style.touchAction = 'none';
 
                 // 创建关闭按钮
                 const closeButton = document.createElement('button');
@@ -1619,18 +1633,34 @@ export const imageUtilsFP = {
                     closeButton.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
                 });
 
+                // 创建图片容器用于手势操作
+                const imageWrapper = document.createElement('div');
+                imageWrapper.style.position = 'relative';
+                imageWrapper.style.overflow = 'visible';
+                imageWrapper.style.transformOrigin = 'center center';
+                
                 // 创建图片元素
                 const img = document.createElement('img');
                 img.src = imageUrl;
-                img.style.maxWidth = '90%';
-                img.style.maxHeight = '90vh';
+                img.style.maxWidth = '100%';
+                img.style.maxHeight = '100%';
                 img.style.objectFit = 'contain';
-                img.style.transition = 'transform 0.3s ease';
                 img.style.transform = 'scale(0.95)';
+                img.style.transition = 'transform 0.3s ease';
 
+                // 缩放和平移状态
+                let scale = 1;
+                let translateX = 0;
+                let translateY = 0;
+                let startX = 0;
+                let startY = 0;
+                let lastDistance = 0;
+                let isPinching = false;
+                
                 // 添加到容器
+                imageWrapper.appendChild(img);
                 previewContainer.appendChild(closeButton);
-                previewContainer.appendChild(img);
+                previewContainer.appendChild(imageWrapper);
                 document.body.appendChild(previewContainer);
 
                 // 淡入效果
@@ -1649,6 +1679,9 @@ export const imageUtilsFP = {
                             document.body.removeChild(previewContainer);
                         }
                     }, 300);
+                    
+                    // 移除事件监听器
+                    document.removeEventListener('keydown', handleEscKey);
                 };
 
                 // 点击关闭按钮关闭预览
@@ -1669,11 +1702,74 @@ export const imageUtilsFP = {
                 const handleEscKey = (e: KeyboardEvent) => {
                     if (e.key === 'Escape') {
                         closePreview();
-                        document.removeEventListener('keydown', handleEscKey);
                     }
                 };
 
                 document.addEventListener('keydown', handleEscKey);
+                
+                // 手势操作 - 触摸开始
+                imageWrapper.addEventListener('touchstart', (e: TouchEvent) => {
+                    e.preventDefault();
+                    
+                    if (e.touches.length === 1) {
+                        // 单指拖动
+                        startX = e.touches[0].clientX - translateX;
+                        startY = e.touches[0].clientY - translateY;
+                    } else if (e.touches.length === 2) {
+                        // 双指缩放
+                        isPinching = true;
+                        const dx = e.touches[0].clientX - e.touches[1].clientX;
+                        const dy = e.touches[0].clientY - e.touches[1].clientY;
+                        lastDistance = Math.sqrt(dx * dx + dy * dy);
+                    }
+                });
+                
+                // 手势操作 - 触摸移动
+                imageWrapper.addEventListener('touchmove', (e: TouchEvent) => {
+                    e.preventDefault();
+                    
+                    if (e.touches.length === 1 && !isPinching) {
+                        // 单指拖动
+                        translateX = e.touches[0].clientX - startX;
+                        translateY = e.touches[0].clientY - startY;
+                        updateTransform();
+                    } else if (e.touches.length === 2) {
+                        // 双指缩放
+                        const dx = e.touches[0].clientX - e.touches[1].clientX;
+                        const dy = e.touches[0].clientY - e.touches[1].clientY;
+                        const currentDistance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (lastDistance > 0) {
+                            const scaleFactor = currentDistance / lastDistance;
+                            scale *= scaleFactor;
+                            // 限制缩放范围
+                            scale = Math.max(1, Math.min(5, scale));
+                            updateTransform();
+                        }
+                        
+                        lastDistance = currentDistance;
+                    }
+                });
+                
+                // 手势操作 - 触摸结束
+                imageWrapper.addEventListener('touchend', (e: TouchEvent) => {
+                    e.preventDefault();
+                    
+                    if (e.touches.length === 0) {
+                        isPinching = false;
+                        lastDistance = 0;
+                    } else if (e.touches.length === 1) {
+                        // 从双指变为单指
+                        isPinching = false;
+                        startX = e.touches[0].clientX - translateX;
+                        startY = e.touches[0].clientY - translateY;
+                    }
+                });
+                
+                // 更新变换
+                function updateTransform() {
+                    imageWrapper.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+                }
 
                 // 保存到window对象
                 (window as any).imageUtilsPreview = previewContainer;
