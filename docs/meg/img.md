@@ -1,4 +1,4 @@
-# IMAGE 指南
+# Image 指南
 
 > 1. https://developer.mozilla.org/zh-CN/docs/Web/HTML/Reference/Elements/img
 
